@@ -1,0 +1,21 @@
+/* Estilos para las notas */
+.list-group-item {
+    position: relative;
+}
+
+/* Estilos para las categorías */
+.badge {
+    margin-left: 10px;
+    color: #830808
+}
+
+/* Estilos para los formularios de edición */
+#edit_form_ textarea,
+#edit_form_ input {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+#edit_form_ button {
+    margin-right: 10px;
+}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Search Results{% endblock %}
+
+{% block content %}
+<h1 align="center">Search Results</h1>
+<p>Results for '{{ query }}':</p>
+<ul class="list-group list-group-flush" id="notes">
+    {% for note in notes %}
+    <li class="list-group-item">{{ note.data }} - {{ note.category }}
+        <button type="button" class="btn btn-danger"onClick="deleteNote({{ note.id }})">
+            Delete
+        </button>
+        <a href="#" class="btn btn-primary"onClick="showEditForm({{ note.id }})">
+            Edit Note
+        </a>
+    </li>
+    <div id="edit_form_{{ note.id }}" style="display: none;">
+        <!-- Formulario de edición -->
+    </div>
+    {% endfor %}
+</ul>
+{% endblock %}
