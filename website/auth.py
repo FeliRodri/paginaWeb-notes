@@ -1,13 +1,69 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from .models import User
+from .models import User, PasswordResetToken
 from flask_socketio import SocketIO
 from werkzeug.security import generate_password_hash, check_password_hash
-from . import db 
+from . import db, mail 
 from flask_login import login_user, login_required, logout_user, current_user
+from flask_mail import Message
+from datetime import datetime, timedelta
+import secrets
 
 socketio = SocketIO()
 
 auth = Blueprint('auth', __name__)
+
+@auth.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        # user = current_user if current_user.is_authenticated else None
+
+        if user:
+            # Crear un token de restablecimiento de contraseña y enviar un correo electrónico con el enlace
+            token = secrets.token_urlsafe(32)
+            expiration_time = datetime.utcnow() + timedelta(hours=1)
+            reset_token = PasswordResetToken(token=token, user_id=user.id, expiration_time=expiration_time)
+            db.session.add(reset_token)
+            db.session.commit()
+
+            reset_link = url_for('auth.reset_password', token=token, _external=True)
+            subject = 'Password Reset Request'
+            body = f'Hello {user.first_name},\n\nTo reset your password, click on the following link:\n{reset_link}\n\nIf you did not request a password reset, please ignore this email.'
+            msg = Message(subject, recipients=[email], body=body)
+            mail.send(msg)
+
+            flash('An email with instructions to reset your password has been sent.', 'info')
+            return redirect(url_for('auth.login'))
+
+        flash('Email does not exist.', 'error')
+
+    return render_template('forgot_password.html')
+
+@auth.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    reset_token = PasswordResetToken.query.filter_by(token=token).first()
+
+    if reset_token and reset_token.expiration_time > datetime.utcnow():
+        try:
+            if request.method == 'POST':
+                new_password = request.form.get('new_password')
+                reset_token.user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+                db.session.delete(reset_token)
+                db.session.commit()
+
+                flash('Your password has been reset successfully. You can now log in with your new password.', 'success')
+                return redirect(url_for('auth.login'))
+
+            return render_template('reset_password.html', token=token)   
+        
+        except Exception as e:
+            print(f"Error resetting password: {e}")
+            flash('An error occurred while resetting your password. Please try again.', 'error')
+            return redirect(url_for('auth.forgot_password'))
+
+    flash('Invalid or expired token. Please try again.', 'error')
+    return redirect(url_for('auth.forgot_password'))
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
@@ -24,7 +80,7 @@ def login():
             else:
                 flash('Incorrect password, try again.', category='error')
         else:
-            flash('Email does not exists.', category='error')
+            flash('Email does not exists. Please sign up', category='error')
     return render_template("login.html", user=current_user)
 
 @auth.route('/logout')
@@ -66,8 +122,7 @@ def sign_up():
         except Exception as e:
             print(f"Error: {e}")
             flash('Ocurrió un error durante la creación de la cuenta.', category='error') 
-            return render_template("sign_up.html")      
+            return render_template("sign_up.html")  
 
-    
-    socketio.emit('update_notes', namespace='/')   
-    return redirect(url_for('views.home'))
+    return render_template("sign_up.html", user=current_user)    
+

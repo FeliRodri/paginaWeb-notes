@@ -29,10 +29,10 @@
                     {% endif %}
                 </div>
                 <div>
-                    <button type="button" class="btn btn-danger" onClick="showDeleteConfirmation('{{ note.id }}')">
+                    <button type="button" class="btn btn-danger" onClick="showDeleteConfirmation('{{ note.id }}')"><i class="fa-solid fa-trash-can"></i>
                         Delete
                     </button>
-                    <button type="button" class="btn btn-primary" data-note-id="{{ note.id }}" data-bs-toggle="modal" data-bs-target="#editNoteModal_{{ note.id }}">
+                    <button type="button" class="btn btn-primary" data-note-id="{{ note.id }}" data-bs-toggle="modal" data-bs-target="#editNoteModal_{{ note.id }}"><i class="fa-solid fa-screwdriver-wrench"></i>
                         Edit Note
                     </button>
                 </div>
@@ -99,8 +99,44 @@
             {% endif %}
         </ul>
     {% endif %}
-
-    <form method="POST" action="{{ url_for('views.home') }}" class="mt-3">
+     
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNoteModal">
+        <i class="fa-solid fa-file-circle-plus fa-fade"></i>  Crear Notas
+    </button>
+    <!-- modal para crear nota -->
+    <div class="modal fade" id="createNoteModal" tabindex="-1" aria-labelledby="createNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createNoteModalLabel">Add Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tu formulario dentro del modal -->
+                    <form method="POST" action="{{ url_for('views.home') }}">
+                        <div class="mb-3">
+                            <label for="note" class="form-label">Note:</label>
+                            <textarea name="note" id="note" class="form-control"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category:</label>
+                            <input type="text" name="category" id="category" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="reminder" class="form-label">Reminder:</label>
+                            <input type="datetime-local" name="reminder" id="reminder" class="form-control">
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-plus fa-bounce"></i>  Add Note
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <form method="POST" action="{{ url_for('views.home') }}" class="mt-3">
         <div class="mb-3">
             <label for="note" class="form-label">Note:</label>
             <textarea name="note" id="note" class="form-control"></textarea>
@@ -116,7 +152,7 @@
         <div class="text-center">
             <button type="submit" class="btn btn-primary">Add Note</button>
         </div>
-    </form>
+    </form> -->
 
     <!-- Modal para Eliminar -->
     <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
@@ -125,7 +161,6 @@
                 <div class="modal-header">
                     <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirmar Eliminación</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">

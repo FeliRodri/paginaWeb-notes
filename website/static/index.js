@@ -36,6 +36,19 @@ function deleteNote() {
 }
 
 $(document).ready(function () {
+
+    // Evento cuando el modal de Crear Notas se muestra
+    $('#crearNotaModal').on('show.bs.modal', function (event) {
+        console.log('El modal de Crear Notas se está mostrando');
+        // Puedes realizar acciones adicionales cuando el modal se muestra
+    });
+
+    // Evento cuando el modal de Crear Notas se oculta
+    $('#crearNotaModal').on('hidden.bs.modal', function (event) {
+        console.log('El modal de Crear Notas se ha ocultado');
+        // Puedes realizar acciones adicionales cuando el modal se oculta
+    });
+    
     $('.edit-note-btn').click(function () {
         var noteId = $(this).data('note-id');
 

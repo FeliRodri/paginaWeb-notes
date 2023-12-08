@@ -6,7 +6,7 @@
 /* Estilos para las categorías */
 .badge {
     margin-left: 10px;
-    color: #830808
+    color: #f8baba
 }
 
 /* Estilos para los formularios de edición */
@@ -18,4 +18,16 @@
 
 #edit_form_ button {
     margin-right: 10px;
+}
+
+.input-icon {
+    position: relative;
+}
+
+.input-icon i {
+    position: absolute;
+    right: 10px; /* Ajusta según el espacio deseado */
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
 }

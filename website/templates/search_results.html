@@ -7,15 +7,66 @@
 <ul class="list-group list-group-flush" id="notes">
     {% for note in notes %}
     <li class="list-group-item">{{ note.data }} - {{ note.category }}
-        <button type="button" class="btn btn-danger"onClick="deleteNote({{ note.id }})">
+        <button type="button" class="btn btn-danger"onClick="showDeleteConfirmation('{{ note.id }}')"><i class="fa-solid fa-trash-can"></i>
             Delete
         </button>
-        <a href="#" class="btn btn-primary"onClick="showEditForm({{ note.id }})">
+        <a href="#" class="btn btn-primary" data-note-id="{{ note.id }}" data-bs-toggle="modal" data-bs-target="#editNoteModal_{{ note.id }}"><i class="fa-solid fa-screwdriver-wrench"></i>
             Edit Note
         </a>
     </li>
     <div id="edit_form_{{ note.id }}" style="display: none;">
         <!-- Formulario de edición -->
+    </div>
+    <div class="modal fade" id="editNoteModal_{{ note.id }}" tabindex="-1" role="dialog" aria-labelledby="editNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editNoteModalLabel">Editar Nota</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" action="{{ url_for('views.edit_note_modal', note_id=note.id) }}" onsubmit="return updateNote('{{ note.id }}')">
+                        <!-- Campos del formulario -->
+                        <div class="mb-3">
+                            <label for="editedNoteData" class="form-label">Contenido:</label>
+                            <textarea id="editedNoteData" class="form-control" name="note" rows="3">{{ note.data|e }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editedNoteCategory" class="form-label">Categoría:</label>
+                            <input type="text" id="editedNoteCategory" class="form-control" name="category" value="{{ note.category|e }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editedNoteReminder" class="form-label">Recordatorio:</label>
+                            <input type="datetime-local" id="editedNoteReminder" class="form-control" name="reminder" value="{{ note.reminder|default('') }}">
+                        </div>
+                        <!-- ... (otros campos si es necesario) -->
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal para Eliminar -->
+    <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                    </button>
+                </div>
+                <div class="modal-body">
+                    ¿Estás seguro de que deseas eliminar esta nota?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteNote()">Sí, eliminar</button>
+                </div>
+            </div>
+        </div>
     </div>
     {% endfor %}
 </ul>
