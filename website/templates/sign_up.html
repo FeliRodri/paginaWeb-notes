@@ -1,27 +1,88 @@
-{% extends "base.html" %} {% block title%}Sign Up{% endblock %}
+{% extends "base.html" %} 
+{% block title %}Sign Up{% endblock %}
+
+{% for key, value in form.__dict__.items() %}
+    {{ key }}: {{ value }}
+{% endfor %}
+
+{% macro render_field(field) %}
+    <div class="form-group">
+        <label for="{{ field.id }}">{{ field.label }}</label>
+        <div class="input-icon">
+            {{ field(class="form-control", placeholder=field.label) }}
+            <i class="{{ field.icon }}"></i>
+        </div>
+        {% if field.errors %}
+            <ul class="errors">
+                {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endmacro %}
 
 {% block content %}
 <div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
-    <form method="POST">
+    <form method="POST" action="{{ url_for('auth.sign_up') }}">
+        {% if csrf is defined and csrf is not none %}
+        {{ csrf.hidden_tag() }}
+    {% endif %}
+        {% if form.errors %}
+            <ul class="errors">
+                {% for field, errors in form.errors.items() %}
+                    {% for error in errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        {{ form.hidden_tag() }}
         <h3 align="center">Sign Up</h3>
-        <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" class="form-control" name="email" id="email" placeholder="Enter email">
-        </div>
-        <div class="form-group">
-            <label for="firstName">First Name</label>
-            <input type="text" class="form-control" name="firstName" id="firstName" placeholder="Enter first name">
-        </div>
-        <div class="form-group">
-            <label for="password1">Password</label>
-            <input type="password" class="form-control" name="password1" id="password1" placeholder="Enter password">
-        </div>
-        <div class="form-group">
-            <label for="password2">Password (Confirm)</label>
-            <input type="password" class="form-control" name="password2" id="password2" placeholder="Confirm password">
-        </div>
-        <br />
 
+        <div class="form-group">
+            {{ form.email.label }}
+            <div class="input-icon">
+                {{ form.email(class="form-control", placeholder="e.g. email@mail.com") }}
+                <i class="far fa-envelope"></i>
+            </div>
+            {% for error in form.email.errors %}
+                <div class="errors">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            {{ form.firstName.label }}
+            <div class="input-icon">
+                {{ form.firstName(class="form-control", placeholder="Primer Nombre") }}
+                <i class="fa-regular fa-address-card"></i>
+            </div>
+            {% for error in form.email.errors %}
+                <div class="errors">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            {{ form.password.label }}
+            <div class="input-icon">
+            {{ form.password(class="form-control", placeholder="Enter Password") }}
+            <i class="fas fa-key"></i>
+            </div>
+            {% for error in form.email.errors %}
+                <div class="errors">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            {{ form.confirm_password.label }}
+            <div class="input-icon">
+            {{ form.confirm_password(class="form-control", placeholder="Enter Password Again") }}
+            <i class="fas fa-key"></i>
+            </div>
+            {% for error in form.email.errors %}
+                <div class="errors">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <br />
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>  
 </div>  

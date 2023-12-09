@@ -5,6 +5,8 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_mail import Mail
+from flask_wtf.csrf import CSRFProtect
+from flask_wtf import CSRFProtect
 
 
 db = SQLAlchemy()
@@ -13,6 +15,7 @@ DB_NAME = "databasetest.db"
 socketio = SocketIO()
 mail = Mail()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
@@ -29,6 +32,7 @@ def create_app():
     socketio.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     
     from .views import views
     from .auth import auth

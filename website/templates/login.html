@@ -3,6 +3,11 @@
 {% block content %}
 <div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
     <form method="POST" class="border p-3 rounded" style="width: 400px;" >
+        {% if csrf is defined and csrf is not none %}
+            {{ csrf.hidden_tag() }}
+        {% endif %}
+        {% if form %}
+        {{ form.hidden_tag() }}
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -42,7 +47,9 @@
         </div>
         <br>
         <button type="submit" class="btn btn-primary btn-block">Login</button>
+        {% endif %}
     </form>
+    
 </div>
 
 {% endblock %}

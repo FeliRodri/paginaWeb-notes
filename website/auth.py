@@ -1,39 +1,47 @@
+from sqlite3 import IntegrityError
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from .models import User, PasswordResetToken
 from flask_socketio import SocketIO
 from werkzeug.security import generate_password_hash, check_password_hash
-from . import db, mail 
+from . import mail 
 from flask_login import login_user, login_required, logout_user, current_user
 from flask_mail import Message
 from datetime import datetime, timedelta
+from .models import PasswordResetToken, db, User
+from .forms import LoginForm, SignupForm 
 import secrets
 
 socketio = SocketIO()
 
 auth = Blueprint('auth', __name__)
 
+def send_reset_password_email(user, token):
+    # Implementación de envío de correo electrónico para restablecimiento de contraseña
+    reset_link = url_for('auth.reset_password', token=token, _external=True)
+    subject = 'Password Reset Request'
+    body = f'Hello {user.first_name},\n\nTo reset your password, click on the following link:\n{reset_link}\n\nIf you did not request a password reset, please ignore this email.'
+    msg = Message(subject, recipients=[user.email], body=body)
+    mail.send(msg)
+    flash('An email with instructions to reset your password has been sent.', 'info')
+    return redirect(url_for('auth.login'))
+
+def generate_reset_token(user):
+    # Implementación para generar un token de restablecimiento de contraseña
+    token = secrets.token_urlsafe(32)
+    expiration_time = datetime.utcnow() + timedelta(hours=1)
+    reset_token = PasswordResetToken(token=token, user_id=user.id, expiration_time=expiration_time)
+    db.session.add(reset_token)
+    db.session.commit()
+    return token
+
 @auth.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
-        # user = current_user if current_user.is_authenticated else None
 
         if user:
-            # Crear un token de restablecimiento de contraseña y enviar un correo electrónico con el enlace
-            token = secrets.token_urlsafe(32)
-            expiration_time = datetime.utcnow() + timedelta(hours=1)
-            reset_token = PasswordResetToken(token=token, user_id=user.id, expiration_time=expiration_time)
-            db.session.add(reset_token)
-            db.session.commit()
-
-            reset_link = url_for('auth.reset_password', token=token, _external=True)
-            subject = 'Password Reset Request'
-            body = f'Hello {user.first_name},\n\nTo reset your password, click on the following link:\n{reset_link}\n\nIf you did not request a password reset, please ignore this email.'
-            msg = Message(subject, recipients=[email], body=body)
-            mail.send(msg)
-
-            flash('An email with instructions to reset your password has been sent.', 'info')
+            token = generate_reset_token(user)
+            send_reset_password_email(user, token)
             return redirect(url_for('auth.login'))
 
         flash('Email does not exist.', 'error')
@@ -67,9 +75,14 @@ def reset_password(token):
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
+    form = LoginForm()
+
+    if request.method == 'POST' and form.validate_on_submit():
         email = request.form.get('email')
         password = request.form.get('password')
+
+        print("Received POST request to /login")
+        print("Form data:", request.form)
 
         user = User.query.filter_by(email=email).first()
         if user:
@@ -81,7 +94,7 @@ def login():
                 flash('Incorrect password, try again.', category='error')
         else:
             flash('Email does not exists. Please sign up', category='error')
-    return render_template("login.html", user=current_user)
+    return render_template("login.html", user=current_user, form=form)
 
 @auth.route('/logout')
 @login_required
@@ -91,17 +104,19 @@ def logout():
 
 @auth.route('/sign-up', methods=['GET', 'POST'])
 def sign_up():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        first_name = request.form.get('firstName')
-        password1 = request.form.get('password1')
-        password2 = request.form.get('password2')
+    form = SignupForm()
+
+    if request.method == 'POST' and form.validate_on_submit():
+        email = form.email.data
+        first_name = form.firstName.data
+        password1 = form.password.data
+        password2 = form.confirm_password.data
 
         try:
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
-                flash('El Email ya se encuentra registrado', category='error')
-                return render_template("sign_up.html")
+                flash('La dirección de correo electrónico ya está asociada con una cuenta existente. Por favor, usa otra dirección de correo electrónico.', category='error')
+                return render_template("sign_up.html", form=form)
 
             if len(email) < 4:
                 flash('El Email debe tener mas de 3 caracteres.', category='error')
@@ -117,12 +132,17 @@ def sign_up():
                 db.session.commit()
                 login_user(new_user, remember=True)
                 flash('Cuenta creada satisfactoriamente!', category='success')
-                return redirect(url_for('views.home'))
+                return redirect(url_for('auth.login'))
         
+        except IntegrityError:
+            db.session.rollback()  # Deshacer cambios en caso de error de integridad
+            flash('La dirección de correo electrónico ya está asociada con una cuenta existente. Por favor, usa otra dirección de correo electrónico.', category='error')
+            return render_template("sign_up.html", form=form)
         except Exception as e:
             print(f"Error: {e}")
-            flash('Ocurrió un error durante la creación de la cuenta.', category='error') 
-            return render_template("sign_up.html")  
+            flash('Ocurrió un error durante la creación de la cuenta. Por favor, inténtalo nuevamente más tarde.', category='error') 
+            return render_template("sign_up.html", form=form)  
 
-    return render_template("sign_up.html", user=current_user)    
+    return render_template("sign_up.html", form=form)    
+
 

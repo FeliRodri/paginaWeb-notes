@@ -1,50 +1,44 @@
-from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for
 from flask_login import login_required, current_user
-from .models import db, Note
-from . import db
+from .models import db, Note, PasswordResetToken, User
 import json
-from .auth import socketio
-from .scheduler import schedule_reminder, scheduler
+from .auth import send_reset_password_email, generate_reset_token
 from datetime import datetime
-from uuid import uuid4
-from flask_paginate import Pagination, get_page_args
+from flask_wtf.csrf import CSRFProtect
+from .forms import CreateNoteForm, EditNoteForm
 
 
 views = Blueprint('views', __name__)
+
+csrf = CSRFProtect()
 
 @views.route('/', methods=['GET', 'POST'])
 @login_required
 def home():
     page = request.args.get('page', 1, type=int)
-
     per_page = 5
 
-    # Configura la paginación
-
     notes = Note.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=per_page, error_out=False)
-    # user_notes = notes.items  # Utiliza directamente las notas de la página actual
     pagination = notes
 
-    # Configura la paginación
-    # pagination = Pagination(page=page, per_page=per_page, total=notes.total, css_framework='bootstrap4')
+    form = CreateNoteForm()
 
-    if request.method == 'POST':
-        note = request.form.get('note')
-        category = request.form.get('category')
-        reminder_datetime_str = request.form.get('reminder')
+    if form.validate_on_submit():
+        note = form.note.data
+        category = form.category.data
+        reminder_datetime_str = form.reminder.data
 
-        if reminder_datetime_str:
+        if reminder_datetime_str and not isinstance(reminder_datetime_str, str):
+            # Si reminder_datetime_str no es una cadena, conviértelo a cadena
+            reminder_datetime_str = reminder_datetime_str.strftime('%Y-%m-%dT%H:%M')
             try:
-                reminder_datetime = datetime.strptime(reminder_datetime_str, '%Y-%m-%dT%H:%M')
+                if reminder_datetime_str:
+                    reminder_datetime = datetime.strptime(reminder_datetime_str, '%Y-%m-%dT%H:%M')
+                else:
+                    reminder_datetime = None
             except ValueError:
-                flash('Error al parsear la fecha del recordatorio', category='error')
-                return redirect(url_for('views.home'))
-        else:
-            reminder_datetime = None
-
-        print("Valor de 'note' antes de la validación:", note)
-        print("Valor de 'category' antes de la validación:", category)
-        print("Valor de 'reminder' antes de la validación:", reminder_datetime_str)
+                flash('Error al parsear la fecha del recordatorio')
+                return render_template("home.html", user=current_user, notes=notes.items, pagination=pagination, form=form)
 
         if not note:
             flash('Note cannot be empty!', category='error')
@@ -53,9 +47,61 @@ def home():
             db.session.add(new_note)
             db.session.commit()
             flash('Note added!', category='success')
+            return redirect(url_for('views.home'))
 
-    return render_template("home.html", user=current_user, notes=notes.items, pagination=pagination)
 
+    return render_template("home.html", user=current_user, notes=notes.items, pagination=pagination, form=form)
+
+@views.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('views.home'))
+
+    reset_token = PasswordResetToken.query.filter_by(token=token).first()
+
+    if not reset_token or reset_token.expiry_time < datetime.utcnow():
+        flash('El enlace de restablecimiento de contraseña es inválido o ha expirado.', 'error')
+        return redirect(url_for('views.forgot_password'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if new_password != confirm_password:
+            flash('Las contraseñas no coinciden.', 'error')
+        else:
+            # Actualiza la contraseña del usuario y elimina el token de restablecimiento
+            user = User.query.get(reset_token.user_id)
+            user.set_password(new_password)
+            db.session.delete(reset_token)
+            db.session.commit()
+
+            flash('Contraseña restablecida con éxito. Puedes iniciar sesión con tu nueva contraseña.', 'success')
+            return redirect(url_for('views.login'))
+
+    return render_template('reset_password.html', token=token)
+    # Lógica para resetear la contraseña utilizando el token
+    # ...
+
+@views.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('views.home'))
+
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            # Genera un token de restablecimiento de contraseña y envía el correo electrónico
+            token = generate_reset_token(user)
+            send_reset_password_email(user, token)
+            flash('Se ha enviado un correo electrónico con las instrucciones para restablecer la contraseña.', 'success')
+            return redirect(url_for('views.login'))
+        else:
+            flash('No se encontró ninguna cuenta asociada a ese correo electrónico.', 'error')
+
+    return render_template('forgot_password.html')
 
 @views.route('/delete-note', methods=['POST'])
 def delete_note():
@@ -72,19 +118,26 @@ def delete_note():
 @views.route('/edit_note/<int:note_id>', methods=['POST'])
 def edit_note_modal(note_id):
     note_to_edit = Note.query.get_or_404(note_id)
+    form = EditNoteForm(obj=note_to_edit)
 
-    if request.method == 'POST':
-        note_content = request.form.get('note')
-        category = request.form.get('category')
-        reminder_datetime_str = request.form.get('reminder')
+    if request.method == 'POST' and form.validate_on_submit():
+        note_content = form.note.data
+        category = form.category.data
+        reminder_datetime_str = form.reminder.data
 
-        if reminder_datetime_str:
+        if reminder_datetime_str and not isinstance(reminder_datetime_str, str):
+            # Si reminder_datetime_str no es una cadena, conviértelo a cadena
+            reminder_datetime_str = reminder_datetime_str.strftime('%Y-%m-%dT%H:%M')
+
+        
             try:
-                reminder_datetime = datetime.strptime(reminder_datetime_str, '%Y-%m-%dT%H:%M')
+                if reminder_datetime_str:
+                    reminder_datetime = datetime.strptime(reminder_datetime_str, '%Y-%m-%dT%H:%M')
+                else: 
+                    reminder_datetime = None
             except ValueError:
                 return jsonify({'error': 'Error parsing reminder date'})
-        else:
-            reminder_datetime = None
+        
 
         if not note_content:
             return jsonify({'error': 'Note cannot be empty!'})
@@ -98,6 +151,7 @@ def edit_note_modal(note_id):
         print("Valor de 'reminder' antes de la validación:", reminder_datetime_str)
 
         db.session.commit()
+        flash('Note updated successfully!', category='success')
         return redirect(url_for('views.home'))
         
 

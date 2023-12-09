@@ -10,12 +10,14 @@ function showDeleteConfirmation(noteId) {
 function deleteNote() {
 
     var noteId = $('#deleteConfirmationModal .btn-danger').attr('data-note-id');
+    var csrfToken = $('[name="csrf_token"]').attr('value');
 
     fetch('/delete-note', {
         method: 'POST',
         body: JSON.stringify({ noteId: noteId }),
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
     })
     .then((res) => {
@@ -121,11 +123,14 @@ function updateNote(noteId) {
     };
 
     data = Object.fromEntries(Object.entries(data).filter(([_, v]) => v));
+    var csrfToken = $('[name="csrf_token"]').attr('value');
+
 
     fetch(`/edit_note/${noteId}?_=${Date.now()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify(data),
     })
